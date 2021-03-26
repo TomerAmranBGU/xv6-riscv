@@ -142,6 +142,9 @@ syscall(void)
   num = p->trapframe->a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     //a0 stores the answer from the syscall
+    //process ID,”: syscall”, system call name, system call arguments,-> , return value
+    int return_value = syscalls[num]();
+    printf("%d syscall:%d  SYS_CALL_NAME ARGS -> %d\n",p->pid,num,return_value);
     p->trapframe->a0 = syscalls[num]();
   } else {
     printf("%d %s: unknown sys call %d\n",

@@ -655,6 +655,20 @@ procdump(void)
   }
 }
 
-void trace(int mask,int pid){
+int 
+trace(int mask,int pid)
+{
+  struct proc* p;
+  for (p=proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if (p->pid == pid){
+      printf("trace found the requested process:%d and updated to mask:%d",pid,mask);
+      p->trace_mask = mask;
+      release(&p->lock);
+      return 0;
+    }
+    release(&p->lock);
+  }
+  return -1;
   printf("process called trace in kernel space");
 }
