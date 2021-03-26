@@ -30,6 +30,8 @@ fetchstr(uint64 addr, char *buf, int max)
     return err;
   return strlen(buf);
 }
+//getting the argument of the systemcall?
+//it is stored at specific register
 
 static uint64
 argraw(int n)
@@ -83,6 +85,7 @@ argstr(int n, char *buf, int max)
   return fetchstr(addr, buf, max);
 }
 
+
 extern uint64 sys_chdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_dup(void);
@@ -104,7 +107,7 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
-
+extern uint64 sys_trace(void);
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -127,16 +130,18 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_trace]   sys_trace,
 };
 
 void
-syscall(void)
+syscall(void)  
 {
   int num;
   struct proc *p = myproc();
 
   num = p->trapframe->a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+    //a0 stores the answer from the syscall
     p->trapframe->a0 = syscalls[num]();
   } else {
     printf("%d %s: unknown sys call %d\n",
