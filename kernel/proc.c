@@ -662,7 +662,6 @@ trace(int mask,int pid)
   for (p=proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
     if (p->pid == pid){
-      printf("trace found the requested process:%d and updated to mask:%d",pid,mask);
       p->trace_mask = mask;
       release(&p->lock);
       return 0;
@@ -670,5 +669,4 @@ trace(int mask,int pid)
     release(&p->lock);
   }
   return -1;
-  printf("process called trace in kernel space");
 }

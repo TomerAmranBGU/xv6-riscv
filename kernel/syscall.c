@@ -6,7 +6,30 @@
 #include "proc.h"
 #include "syscall.h"
 #include "defs.h"
-
+static char* num_to_name_map[] = {
+  "fork",
+  "exit",
+  "wait",
+  "pipe",
+  "read",
+  "kill",
+  "exec",
+  "fstat",
+  "chdir",
+  "dup",
+  "getpid",
+  "sbrk",
+  "sleep",
+  "uptime",
+  "open",
+  "write",
+  "mknod",
+  "unlink",
+  "link",
+  "mkdir",
+  "close",
+  "trace",
+};
 // Fetch the uint64 at addr from the current process.
 int
 fetchaddr(uint64 addr, uint64 *ip)
@@ -85,7 +108,24 @@ argstr(int n, char *buf, int max)
   return fetchstr(addr, buf, max);
 }
 
-
+void print_trace(struct proc* p, int num, int retval){
+    int mask = p->trace_mask;
+    int pid = p->pid;
+    if ((mask & 1 << num) != 0){
+      char* syscall_name = num_to_name_map[num-1];
+      if (num == 1){ //fork
+        printf("%d: syscall %s %s -> %d\n", pid, syscall_name, "NULL", retval);
+      }
+      else if (num == 6 || num ==12){
+        int argv;
+        argint(0, &argv);
+        printf("%d: syscall %s %d -> %d\n", pid, syscall_name, argv, retval);
+      }
+      else{
+        printf("%d: syscall %s -> %d\n", pid, syscall_name, retval);
+      }
+    }
+}
 extern uint64 sys_chdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_dup(void);
@@ -143,9 +183,9 @@ syscall(void)
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     //a0 stores the answer from the syscall
     //process ID,”: syscall”, system call name, system call arguments,-> , return value
-    int return_value = syscalls[num]();
-    printf("%d syscall:%d  SYS_CALL_NAME ARGS -> %d\n",p->pid,num,return_value);
-    p->trapframe->a0 = syscalls[num]();
+    int retval = syscalls[num]();
+    print_trace(p,num,retval);
+    p->trapframe->a0 = retval;
   } else {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);
