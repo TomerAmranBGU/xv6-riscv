@@ -60,11 +60,11 @@ void
 look_for_command_in_PATH_and_exec(struct execcmd* ecmd){
   char* command_name = ecmd->argv[0];
   struct stat path_file_status;
-  if(stat("path", &path_file_status) == -1){
+  if(stat("/path", &path_file_status) == -1){
     panic("can't find 'path' file");
   }
   char* path_buf = malloc(path_file_status.size);
-  int fd = open("path", O_RDONLY);
+  int fd = open("/path", O_RDONLY);
   read(fd, path_buf, path_file_status.size);
   printf(path_buf);
   close(fd);
