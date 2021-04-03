@@ -1,6 +1,6 @@
 struct stat;
 struct rtcdate;
-
+struct perf;
 // system calls
 int fork(void);
 int exit(int) __attribute__((noreturn));
@@ -23,7 +23,7 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-
+int wait_stat(int* status, struct perf* performence);
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);

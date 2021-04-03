@@ -664,6 +664,59 @@ procdump(void)
 }
 
 //ass1-task3
+int wait_stat(uint64 addr, struct perf* performance){
+  struct proc *np;
+  int havekids, pid;
+  struct proc *p = myproc();
+
+  acquire(&wait_lock);
+
+  for(;;){
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for(np = proc; np < &proc[NPROC]; np++){
+      if(np->parent == p){
+        // make sure the child isn't still in exit() or swtch().
+        acquire(&np->lock);
+
+        havekids = 1;
+        if(np->state == ZOMBIE){
+          // Found one.
+          pid = np->pid;
+          if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
+                                  sizeof(np->xstate)) < 0) {
+            release(&np->lock);
+            release(&wait_lock);
+            return -1;
+          }
+
+          //filling perf
+          performance->ttime = np->ttime;
+          performance->ctime = np->ctime;
+          performance->stime = np->stime;
+          performance->retime = np->retime;
+          performance->rutime = np->rutime;
+          performance->average_bursttime = np->average_bursttime;
+          freeproc(np);
+          release(&np->lock);
+          release(&wait_lock);
+          return pid;
+        }
+        release(&np->lock);
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || p->killed){
+      release(&wait_lock);
+      return -1;
+    }
+    
+    // Wait for a child to exit.
+    sleep(p, &wait_lock);  //DOC: wait-sleep
+  }
+}
+
 void updateProccesesTimeStruct(void){
   struct proc* p;
   for (p = proc; p< &proc[NPROC];p++){

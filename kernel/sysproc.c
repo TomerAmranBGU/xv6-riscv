@@ -95,3 +95,13 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+uint64
+sys_wait_stat(void){
+  int status;
+  struct perf performance;
+  if(argint(0, &status) < 0)
+    return -1;
+  if(argint(1, (int*) &performance) < 0)
+    return -1;
+  return wait_stat((uint64)&status, &performance);
+}

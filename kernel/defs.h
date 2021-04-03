@@ -8,7 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
-
+struct perf;
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -105,7 +105,9 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+int            wait_stat(uint64 addr, struct perf * performance);
 void updateProccesesTimeStruct(void);
+
 // swtch.S
 void            swtch(struct context*, struct context*);
 
