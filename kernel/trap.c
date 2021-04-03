@@ -1,5 +1,5 @@
-#include "types.h"
 #include "param.h"
+#include "types.h"
 #include "memlayout.h"
 #include "riscv.h"
 #include "spinlock.h"
@@ -164,6 +164,7 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
+  updateProccesesTimeStruct();
   wakeup(&ticks);
   release(&tickslock);
 }
@@ -171,7 +172,7 @@ clockintr()
 // check if it's an external interrupt or software interrupt,
 // and handle it.
 // returns 2 if timer interrupt,
-// 1 if other device,
+// 1 if other device, 
 // 0 if not recognized.
 int
 devintr()

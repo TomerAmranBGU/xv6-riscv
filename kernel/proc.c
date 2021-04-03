@@ -120,6 +120,14 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
+  //ass1-task3
+  p->ctime = ticks;
+  p->retime = 0;
+  p->ttime = 0;
+  p->rutime = 0;
+  p->stime = 0;
+  p->average_bursttime = 0;
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -557,7 +565,7 @@ sleep(void *chan, struct spinlock *lk)
 // Wake up all processes sleeping on chan.
 // Must be called without any p->lock.
 void
-wakeup(void *chan)
+    wakeup(void *chan)
 {
   struct proc *p;
 
@@ -652,5 +660,30 @@ procdump(void)
       state = "???";
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
+  }
+}
+
+//ass1-task3
+void updateProccesesTimeStruct(void){
+  struct proc* p;
+  for (p = proc; p< &proc[NPROC];p++){
+    acquire(&p->lock);
+    switch (p->state)
+    {
+    case SLEEPING:{
+        p->stime++;
+      }
+      break;
+    case RUNNABLE:{
+        p->retime++;
+      }
+      break;
+    case RUNNING:{
+        p->rutime++;
+      }
+      break;
+    default:{   }
+    }
+    release(&p->lock);
   }
 }
