@@ -103,5 +103,5 @@ sys_wait_stat(void){
     return -1;
   if(argint(1, (int*) &performance) < 0)
     return -1;
-  return wait_stat((uint64)&status, &performance);
+  return wait_stat(&status, &performance);
 }

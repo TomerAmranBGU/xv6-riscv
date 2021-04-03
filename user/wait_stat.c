@@ -13,15 +13,19 @@ struct perf {
 };
 
 int main(int argc, char** argv){
+
+
     int pid = fork();
-    struct perf performance; 
+    struct perf performance = {0,0,0,0,0,0}; 
     printf("at user\nperf addr : %d\n", &performance);
     int status;
     if (pid ==0){
         sleep(1);
     }
     else{
-        wait_stat(&status, &performance);
+        int ans = wait(&status);
+        fprintf(2, "wait ans: %d", ans);
+        // wait_stat(&status, &performance);
         fprintf(2,"%d %d %d %d %d ", performance.ttime, performance.stime, performance.rutime, performance.retime, performance.ctime);
         fprintf(2,"parent\n");
     }
