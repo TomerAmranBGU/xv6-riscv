@@ -665,6 +665,8 @@ procdump(void)
 
 //ass1-task3
 int wait_stat(uint64 addr, struct perf* performance){
+  printf("wait_stat at proc.c\n");
+  printf("perf addr : %d\n", performance);
   struct proc *np;
   int havekids, pid;
   struct proc *p = myproc();
@@ -683,20 +685,24 @@ int wait_stat(uint64 addr, struct perf* performance){
         if(np->state == ZOMBIE){
           // Found one.
           pid = np->pid;
-          if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
-                                  sizeof(np->xstate)) < 0) {
-            release(&np->lock);
-            release(&wait_lock);
-            return -1;
-          }
+          printf("found one pid:%d\n",np->pid);
+          // if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
+          //                         sizeof(np->xstate)) < 0) {
+          //   release(&np->lock);
+          //   release(&wait_lock);
+          //   return -1;
+          // }
 
           //filling perf
-          performance->ttime = np->ttime;
-          performance->ctime = np->ctime;
-          performance->stime = np->stime;
-          performance->retime = np->retime;
-          performance->rutime = np->rutime;
-          performance->average_bursttime = np->average_bursttime;
+          printf("filling pref pid:%d\n",np->pid);
+          printf("%d %d %d %d %d\n", np->ttime, np->stime, np->rutime, np->retime, np->ctime);
+          copyout(p->pagetable,(uint64) performance, (char*)&np->ctime,sizeof(struct perf));
+          // performance->ttime = np->ttime;
+          // performance->ctime = np->ctime;
+          // performance->stime = np->stime;
+          // performance->retime = np->retime;
+          // performance->rutime = np->rutime;
+          // performance->average_bursttime = np->average_bursttime;
           freeproc(np);
           release(&np->lock);
           release(&wait_lock);
