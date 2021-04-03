@@ -664,7 +664,7 @@ procdump(void)
 }
 
 //ass1-task3
-int wait_stat(int* addr, struct perf* performance){
+int wait_stat(uint64 status, uint64 performance){
   printf("wait_stat at proc.c\n");
   printf("perf addr : %d\n", performance);
   struct proc *np;
@@ -686,7 +686,7 @@ int wait_stat(int* addr, struct perf* performance){
           // Found one.
           pid = np->pid;
           printf("found one pid:%d\n",np->pid);
-          if(addr != 0 && copyout(p->pagetable, (uint64)addr, (char *)&np->xstate,
+          if(status != 0 && copyout(p->pagetable, status, (char *)&np->xstate,
                                   (uint64)sizeof(np->xstate)) < 0) {
             printf("copyout error1\n");
 

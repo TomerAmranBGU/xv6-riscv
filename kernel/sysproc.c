@@ -97,11 +97,11 @@ sys_uptime(void)
 }
 uint64
 sys_wait_stat(void){
-  int status;
-  struct perf performance;
-  if(argint(0, &status) < 0)
+  uint64 status;
+  uint64 performance;
+  if(argaddr(0, &status) < 0)
     return -1;
-  if(argint(1, (int*) &performance) < 0)
+  if(argaddr(1, &performance) < 0)
     return -1;
-  return wait_stat(&status, &performance);
+  return wait_stat(status, performance);
 }

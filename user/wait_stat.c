@@ -17,16 +17,14 @@ int main(int argc, char** argv){
 
     int pid = fork();
     struct perf performance = {0,0,0,0,0,0}; 
-    printf("at user\nperf addr : %d\n", &performance);
     int status;
     if (pid ==0){
-        sleep(1);
+        sleep(30);
     }
     else{
-        int ans = wait(&status);
-        fprintf(2, "wait ans: %d", ans);
-        // wait_stat(&status, &performance);
-        fprintf(2,"%d %d %d %d %d ", performance.ttime, performance.stime, performance.rutime, performance.retime, performance.ctime);
+        int ans = wait_stat(&status,&performance);
+        fprintf(2, "wait ans: %d\n", ans);
+        fprintf(2,"%d %d %d %d %d ", performance.ctime, performance.ttime, performance.stime, performance.rutime, performance.retime);
         fprintf(2,"parent\n");
     }
     exit(0);
