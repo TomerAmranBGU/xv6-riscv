@@ -83,6 +83,17 @@ struct trapframe {
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
+struct perf
+{
+  /* data */
+int ctime;
+int ttime;
+int stime;
+int retime;
+int rutime;  
+int avrage;
+};
+
 struct proc {
   struct spinlock lock; //[t]Q - why the procces needs it's own lock?
   // [t]A - because other procces can wake us up
@@ -90,6 +101,8 @@ struct proc {
   // what we see here?? we see that the kernel space of procces use THE SAME MEMORY
   //there for we need to treet it like threads in regular
   // p->lock must be held when using these:
+  struct perf perf;
+
   enum procstate state;        // Process state
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
@@ -110,3 +123,5 @@ struct proc {
   char name[16];               // Process name (debugging)
   int ticks_counter;           // current running time counter
 };
+
+void update_perf();
