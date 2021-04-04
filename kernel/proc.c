@@ -141,6 +141,9 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  //ass1-task4
+  p->ticks_counter = 0;
+
   return p;
 }
 
@@ -453,6 +456,8 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        //ass1-task4
+        p->ticks_counter = 0;
         swtch(&c->context, &p->context); // [t] - context is the kernel space of proccess
         // [t]Q - what happend if the proccess not yet in sched()?
         // [t]A - it start at the function forkret (search it)
