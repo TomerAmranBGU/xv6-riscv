@@ -83,10 +83,23 @@ struct trapframe {
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
+struct perf
+{
+  /* data */
+int ctime;
+int ttime;
+int stime;
+int retime;
+int rutime;  
+int avrage;
+};
+
 struct proc {
   struct spinlock lock;
 
   // p->lock must be held when using these:
+  struct perf perf;
+
   enum procstate state;        // Process state
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
@@ -105,4 +118,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  
 };
+
+void update_perf();

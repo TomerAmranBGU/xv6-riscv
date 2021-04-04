@@ -1,5 +1,6 @@
 K=kernel
 U=user
+SCHEDFLAG=DEFAULT # ADD
 
 OBJS = \
   $K/entry.o \
@@ -132,6 +133,7 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_test\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
