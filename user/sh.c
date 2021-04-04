@@ -152,6 +152,7 @@ int getcmd(char *buf, int nbuf)
 
 int main(void)
 {
+  fprintf(2,"started shell\n");
   static char buf[100];
   int fd;
 

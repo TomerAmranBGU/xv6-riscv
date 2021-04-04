@@ -402,6 +402,7 @@ void exit(int status)
 // Return -1 if this process has no children.
 int wait(uint64 addr)
 {
+  
   struct proc *np;
   int havekids, pid;
   struct proc *p = myproc();
@@ -505,7 +506,7 @@ void scheduler_FCFS(void){
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
-      if (p->state == RUNNABLE)
+      if (p->state == RUNNABLE )
       {
         if (minP == 0 || (p->perf.ctime < minP->perf.ctime)){
           minP = p;
@@ -523,8 +524,6 @@ void scheduler_FCFS(void){
       // before jumping back to us.
       minP->state = RUNNING;
       c->proc = minP;
-      //ass1-task4
-      minP->ticks_counter = 0;
       swtch(&c->context, &minP->context); // [t] - context is the kernel space of proccess
       // [t]Q - what happend if the proccess not yet in sched()?
       // [t]A - it start at the function forkret (search it)
@@ -551,8 +550,7 @@ void scheduler(void)
     printf("SCHEDFLAG = FCFS\n");
     scheduler_FCFS();
   #endif
-  for(;;){
-  }
+  
 }
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
