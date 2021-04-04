@@ -759,13 +759,13 @@ void update_perf()
     case SLEEPING:
       p->perf.stime++;
       break;
-    case ZOMBIE:
+    /* case ZOMBIE:
       if (p->perf.ttime < 0)
       {
         p->perf.ttime = ticks;
       }
       break;
-    default:
+     */default:
       break;
     }
     release(&p->lock);
