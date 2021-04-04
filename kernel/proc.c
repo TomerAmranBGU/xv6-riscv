@@ -459,8 +459,8 @@ int wait(uint64 addr)
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
-void scheduler(void)
-{
+
+void scheduler_DEFAULT(void){
   struct proc *p;
   struct cpu *c = mycpu();
 
@@ -493,7 +493,69 @@ void scheduler(void)
     }
   }
 }
+void scheduler_FCFS(void){
+  struct proc *p;
+  struct cpu *c = mycpu();
+  struct proc* minP = 0;
+  c->proc = 0;
+  for (;;)
+  {
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
 
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE)
+
+      {
+        if (minP == 0 || (p->perf.ctime < minP->perf.ctime)){
+          minP = p;
+          printf("minP Pid: %d, p pid: %d\n", minP->pid, p->pid);
+        }
+      }
+      release(&p->lock);
+    }
+    if (minP ==0){
+      panic("can't find minP");
+    }
+    acquire(&minP->lock);
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      p->state = RUNNING;
+      c->proc = p;
+      //ass1-task4
+      p->ticks_counter = 0;
+      swtch(&c->context, &p->context); // [t] - context is the kernel space of proccess
+      // [t]Q - what happend if the proccess not yet in sched()?
+      // [t]A - it start at the function forkret (search it)
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    release(&minP->lock);
+  
+  }
+}
+void scheduler_SRT(void){
+ for(;;);
+}
+void scheduler_CFSD(void){
+
+  for(;;);
+}
+void scheduler(void)
+{
+  #ifdef DEFAULT
+    scheduler_DEFAULT();
+  #endif
+  #ifdef FCFS
+    printf("SCHEDFLAG = FCFS\n");
+    scheduler_FCFS();
+  #endif
+  for(;;){
+  }
+}
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
