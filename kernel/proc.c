@@ -502,12 +502,10 @@ void scheduler_FCFS(void){
   {
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
       if (p->state == RUNNABLE)
-
       {
         if (minP == 0 || (p->perf.ctime < minP->perf.ctime)){
           minP = p;
@@ -523,11 +521,11 @@ void scheduler_FCFS(void){
       // Switch to chosen process.  It is the process's job
       // to release its lock and then reacquire it
       // before jumping back to us.
-      p->state = RUNNING;
-      c->proc = p;
+      minP->state = RUNNING;
+      c->proc = minP;
       //ass1-task4
-      p->ticks_counter = 0;
-      swtch(&c->context, &p->context); // [t] - context is the kernel space of proccess
+      minP->ticks_counter = 0;
+      swtch(&c->context, &minP->context); // [t] - context is the kernel space of proccess
       // [t]Q - what happend if the proccess not yet in sched()?
       // [t]A - it start at the function forkret (search it)
       // Process is done running for now.

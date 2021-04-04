@@ -155,6 +155,7 @@ kerneltrap()
     panic("kerneltrap");
   }
 
+  #ifdef DEFAULT
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING){
     struct proc* p = myproc();
@@ -164,7 +165,7 @@ kerneltrap()
     if (p->ticks_counter == QUNTOM)
         yield();
   }
-
+  #endif
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.
   w_sepc(sepc);
