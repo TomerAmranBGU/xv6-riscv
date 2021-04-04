@@ -493,7 +493,7 @@ sched(void)
 
   intena = mycpu()->intena;
   swtch(&p->context, &mycpu()->context);
-  //here we switch to the context of the scheduler (mycpu)
+  //[t] - here we switch to the context of the scheduler (mycpu)
   //it loads all the registers of the kernal space of the scheduler,
   //including the instruction pointer, which means the code continue to run from the place the scheduler stops,
   //the place the scheduler stoped is the line after the swtch() function in the scheduler
