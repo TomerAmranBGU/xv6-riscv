@@ -1,0 +1,10 @@
+You first need to understand the current (e.g., existing) scheduling policy. Locate it in the
+code and try to answer the following questions: 
+
+1) which process the policy chooses to run?
+
+2) what happens when a process returns from I/O?
+ 
+3) what happens when a new process is created?
+
+4) and when/how often scheduling takes place?

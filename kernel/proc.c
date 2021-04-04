@@ -453,8 +453,9 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
-        swtch(&c->context, &p->context);
-
+        swtch(&c->context, &p->context); // [t] - context is the kernel space of proccess
+        // [t]Q - what happend if the proccess not yet in sched()?
+        // [t]A - it start at the function forkret (search it)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
@@ -478,16 +479,24 @@ sched(void)
   struct proc *p = myproc();
 
   if(!holding(&p->lock))
+  //error- dont have the requierd lock
     panic("sched p->lock");
   if(mycpu()->noff != 1)
+  //error - holding more then sigle key
     panic("sched locks");
   if(p->state == RUNNING)
+  //error - we have just changed the state to RUNNABLE
     panic("sched running");
   if(intr_get())
+  //error - there are interapts avilable, which is a probleme
     panic("sched interruptible");
 
   intena = mycpu()->intena;
   swtch(&p->context, &mycpu()->context);
+  //here we switch to the context of the scheduler (mycpu)
+  //it loads all the registers of the kernal space of the scheduler,
+  //including the instruction pointer, which means the code continue to run from the place the scheduler stops,
+  //the place the scheduler stoped is the line after the swtch() function in the scheduler
   mycpu()->intena = intena;
 }
 
@@ -525,6 +534,9 @@ forkret(void)
 
 // Atomically release lock and sleep on chan.
 // Reacquires lock when awakened.
+//[t] - @chan is address in the memory that we sleep on so the kernel know to wake it up
+// spinlock is neccecry for the wait() mechanics
+// 
 void
 sleep(void *chan, struct spinlock *lk)
 {
@@ -546,7 +558,7 @@ sleep(void *chan, struct spinlock *lk)
 
   sched();
 
-  // Tidy up.
+  // Tidy up. //[t] - we don't sleep on a channle any more
   p->chan = 0;
 
   // Reacquire original lock.
@@ -562,7 +574,7 @@ wakeup(void *chan)
   struct proc *p;
 
   for(p = proc; p < &proc[NPROC]; p++) {
-    if(p != myproc()){
+    if(p != myproc()){//[t] - this check prevent deadlock
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;

@@ -84,8 +84,11 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
-  struct spinlock lock;
-
+  struct spinlock lock; //[t]Q - why the procces needs it's own lock?
+  // [t]A - because other procces can wake us up
+  // because the wakeing functionality is not atomic, only one procces can enter this,
+  // what we see here?? we see that the kernel space of procces use THE SAME MEMORY
+  //there for we need to treet it like threads in regular
   // p->lock must be held when using these:
   enum procstate state;        // Process state
   void *chan;                  // If non-zero, sleeping on chan

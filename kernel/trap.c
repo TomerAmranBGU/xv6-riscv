@@ -78,6 +78,9 @@ usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
+    //ass1-task4
+    
+    //[t] - here you can add a counter to change the number of ticks and takes to change procces
     yield();
 
   usertrapret();
