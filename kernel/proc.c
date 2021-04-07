@@ -124,6 +124,7 @@ allocproc(void)
 
 found:
   p->perf.ctime = ticks;
+  p->perf.avrage_bursttime = QUNTOM * 100;
   p->perf.ttime = -1;
   p->pid = allocpid();
   p->state = USED;
@@ -389,8 +390,7 @@ void exit(int status)
   p->xstate = status;
   p->state = ZOMBIE;
   p->perf.ttime = ticks;
-      
-      
+
   release(&wait_lock);
 
   // Jump into the scheduler, never to return.
@@ -460,7 +460,8 @@ int wait(uint64 addr)
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
 
-void scheduler_DEFAULT(void){
+void scheduler_DEFAULT(void)
+{
   struct proc *p;
   struct cpu *c = mycpu();
 
@@ -493,10 +494,11 @@ void scheduler_DEFAULT(void){
     }
   }
 }
-void scheduler_FCFS(void){
+void scheduler_FCFS(void)
+{
   struct proc *p;
   struct cpu *c = mycpu();
-  struct proc* minP = 0;
+  struct proc *minP = 0;
   c->proc = 0;
   for (;;)
   {
@@ -507,52 +509,106 @@ void scheduler_FCFS(void){
       acquire(&p->lock);
       if (p->state == RUNNABLE)
       {
-        if (minP == 0 || (p->perf.ctime < minP->perf.ctime)){
+        if (minP == 0 || (p->perf.ctime < minP->perf.ctime))
+        {
           minP = p;
           printf("minP Pid: %d, p pid: %d\n", minP->pid, p->pid);
         }
       }
       release(&p->lock);
     }
-    if (minP ==0){
+    if (minP == 0)
+    {
       panic("can't find minP");
     }
     acquire(&minP->lock);
-      // Switch to chosen process.  It is the process's job
-      // to release its lock and then reacquire it
-      // before jumping back to us.
-      minP->state = RUNNING;
-      c->proc = minP;
+    // Switch to chosen process.  It is the process's job
+    // to release its lock and then reacquire it
+    // before jumping back to us.
+    minP->state = RUNNING;
+    c->proc = minP;
+    //ass1-task4
+    minP->ticks_counter = 0;
+    swtch(&c->context, &minP->context); // [t] - context is the kernel space of proccess
+    // [t]Q - what happend if the proccess not yet in sched()?
+    // [t]A - it start at the function forkret (search it)
+    // Process is done running for now.
+    // It should have changed its p->state before coming back.
+    c->proc = 0;
+    release(&minP->lock);
+  }
+}
+void scheduler_SRT(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  struct proc *minBurst = 0;
+  c->proc = 0;
+  for (;;)
+  {
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE)
+      {
+        if (minBurst == 0 || (p->perf.ctime < minBurst->perf.ctime))
+        {
+          minBurst = p;
+          printf("minBurst Pid: %d, p pid: %d\n", minBurst->pid, p->pid);
+        }
+      }
+      release(&p->lock);
+    }
+    if (minBurst == 0)
+    {
+      continue;
+    }
+    acquire(&minBurst->lock);
+    // Switch to chosen process.  It is the process's job
+    // to release its lock and then reacquire it
+    // before jumping back to us.
+    if (minBurst->state == RUNNABLE)
+    {
+      minBurst->state = RUNNING;
+      c->proc = minBurst;
       //ass1-task4
-      minP->ticks_counter = 0;
-      swtch(&c->context, &minP->context); // [t] - context is the kernel space of proccess
+      minBurst->ticks_counter = 0;
+      swtch(&c->context, &minBurst->context); // [t] - context is the kernel space of proccess
+      if (minBurst->burst > 0)
+      {
+        update_avg_burst_zero_burst(minBurst);
+      }
       // [t]Q - what happend if the proccess not yet in sched()?
       // [t]A - it start at the function forkret (search it)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
-    release(&minP->lock);
-  
+    }
+    release(&minBurst->lock);
   }
 }
-void scheduler_SRT(void){
- for(;;);
-}
-void scheduler_CFSD(void){
+void scheduler_CFSD(void)
+{
 
-  for(;;);
+  for (;;)
+    ;
 }
 void scheduler(void)
 {
-  #ifdef DEFAULT
-    scheduler_DEFAULT();
-  #endif
-  #ifdef FCFS
-    printf("SCHEDFLAG = FCFS\n");
-    scheduler_FCFS();
-  #endif
-  for(;;){
-  }
+#ifdef DEFAULT
+  scheduler_DEFAULT();
+#endif
+#ifdef FCFS
+  printf("SCHEDFLAG = FCFS\n");
+  scheduler_FCFS();
+#endif
+#ifdef SRT
+  printf("SCHEDFLAG = SRT\n");
+  scheduler_SRT();
+#endif
+
 }
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -566,17 +622,17 @@ void sched(void)
   int intena;
   struct proc *p = myproc();
 
-  if(!holding(&p->lock))
-  //error- dont have the requierd lock
+  if (!holding(&p->lock))
+    //error- dont have the requierd lock
     panic("sched p->lock");
-  if(mycpu()->noff != 1)
-  //error - holding more then sigle key
+  if (mycpu()->noff != 1)
+    //error - holding more then sigle key
     panic("sched locks");
-  if(p->state == RUNNING)
-  //error - we have just changed the state to RUNNABLE
+  if (p->state == RUNNING)
+    //error - we have just changed the state to RUNNABLE
     panic("sched running");
-  if(intr_get())
-  //error - there are interapts avilable, which is a probleme
+  if (intr_get())
+    //error - there are interapts avilable, which is a probleme
     panic("sched interruptible");
 
   intena = mycpu()->intena;
@@ -623,9 +679,8 @@ void forkret(void)
 // Reacquires lock when awakened.
 //[t] - @chan is address in the memory that we sleep on so the kernel know to wake it up
 // spinlock is neccecry for the wait() mechanics
-// 
-void
-sleep(void *chan, struct spinlock *lk)
+//
+void sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
 
@@ -659,8 +714,10 @@ void wakeup(void *chan)
 {
   struct proc *p;
 
-  for(p = proc; p < &proc[NPROC]; p++) {
-    if(p != myproc()){//[t] - this check prevent deadlock
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    if (p != myproc())
+    { //[t] - this check prevent deadlock
       acquire(&p->lock);
       if (p->state == SLEEPING && p->chan == chan)
       {
@@ -817,6 +874,15 @@ int wait_stat(uint64 status, uint64 performence)
   }
 }
 
+void update_avg_burst_zero_burst(struct proc *p)
+{
+  uint B = p->burst;
+  uint A = p->perf.avrage_bursttime;
+  A = ALPHA * B + (100 - ALPHA) * A / 100;
+  p->perf.avrage_bursttime = A;
+  p->burst = 0;
+}
+
 void update_perf()
 {
   struct proc *p;
@@ -827,6 +893,7 @@ void update_perf()
     switch (p->state)
     {
     case RUNNABLE:
+      p->burst++;
       p->perf.retime++;
       break;
     case RUNNING:
@@ -841,7 +908,8 @@ void update_perf()
         p->perf.ttime = ticks;
       }
       break;
-     */default:
+     */
+    default:
       break;
     }
     release(&p->lock);
