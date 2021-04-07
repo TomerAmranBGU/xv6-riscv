@@ -9,6 +9,7 @@
 struct spinlock tickslock;
 uint ticks;
 
+
 extern char trampoline[], uservec[], userret[];
 
 // in kernelvec.S, calls kerneltrap().
@@ -76,11 +77,11 @@ usertrap(void)
   if(p->killed)
     exit(-1);
 
-  #ifdef DEFAULT
+  #ifndef FCFS
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2){
     p->ticks_counter++;
-    // printf("USER pid: %d, ticks_counter: %d\n", p->pid, p->ticks_counter);
+    printf("USER pid: %d, ticks_counter: %d\n", p->pid, p->ticks_counter);
     //ass1-task4
     if (p->ticks_counter == QUNTOM)
         yield();
@@ -155,16 +156,17 @@ kerneltrap()
     panic("kerneltrap");
   }
 
-  #ifdef DEFAULT
+  #ifndef FCFS
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING){
     struct proc* p = myproc();
     p->ticks_counter++;
-    // printf("KERNEL pid: %d, ticks_counter: %d\n", p->pid, p->ticks_counter);
+    printf("KERNEL pid: %d, ticks_counter: %d\n", p->pid, p->ticks_counter);
     //ass1-task4
     if (p->ticks_counter == QUNTOM)
         yield();
   }
+
   #endif
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.

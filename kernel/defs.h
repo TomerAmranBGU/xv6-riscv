@@ -99,6 +99,7 @@ void            scheduler_DEFAULT(void) __attribute__((noreturn));
 void            scheduler_FCFS(void) __attribute__((noreturn));
 void            scheduler_SRT(void) __attribute__((noreturn));
 void            scheduler_CFSD(void) __attribute__((noreturn));
+int             getRuntimeRatio(struct proc* p);
 void            sched(void);
 void            setproc(struct proc*);
 void            sleep(void*, struct spinlock*);

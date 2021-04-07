@@ -32,6 +32,7 @@ main(void)
     }
     if(pid == 0){
       //[t] - SHELL
+      printf("im the child in sh and im going to exec now\n");
       exec("sh", argv);
       printf("init: exec sh failed\n");
       exit(1);
@@ -40,6 +41,7 @@ main(void)
     for(;;){
       // this call to wait() returns if the shell exits,
       // or if a parentless process exits.
+      printf("im the parent at sh and im going to wait");
       wpid = wait((int *) 0);
       if(wpid == pid){
         // the shell exited; restart it.

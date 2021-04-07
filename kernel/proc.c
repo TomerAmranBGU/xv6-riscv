@@ -15,6 +15,10 @@ struct proc *initproc;
 int nextpid = 1;
 struct spinlock pid_lock;
 
+//task4 cupat cholim 
+int nextturn = 1;
+struct spinlock turn_lock;
+
 extern void forkret(void);
 static void freeproc(struct proc *p);
 
@@ -99,6 +103,19 @@ int allocpid()
   return pid;
 }
 
+// task 4
+int allocturn()
+{
+  int turn;
+
+  acquire(&turn_lock);
+  turn = nextturn;
+  nextturn = nextturn + 1;
+  release(&turn_lock);
+
+  return turn;
+}
+
 // Look in the process table for an UNUSED proc.
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
@@ -123,11 +140,12 @@ allocproc(void)
   return 0;
 
 found:
-  p->perf.ctime = ticks;
-  p->perf.ttime = -1;
+  p->perf.ctime = ticks; //ass1-task3
+  p->perf.ttime = -1;   //ass1-task3
+  p->priority = NORMAL; //ass1-task4.4
   p->pid = allocpid();
   p->state = USED;
-
+  p->turn = allocturn();
   // Allocate a trapframe page.
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0)
   {
@@ -256,6 +274,7 @@ void userinit(void)
 
   p->state = RUNNABLE;
 
+
   release(&p->lock);
 }
 
@@ -310,7 +329,9 @@ int fork(void)
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
-
+  
+  //ass1-task4.4
+  np->priority = p->priority;
   // increment reference counts on open file descriptors.
   for (i = 0; i < NOFILE; i++)
     if (p->ofile[i])
@@ -497,6 +518,86 @@ void scheduler_DEFAULT(void){
 void scheduler_FCFS(void){
   struct proc *p;
   struct cpu *c = mycpu();
+  c->proc = 0;
+  for (;;)
+  {
+    struct proc* minP = 0;
+    int minturn = -1;
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE )
+      {
+        // printf("pid: %d, turn: %d\n",p->pid, p->turn);
+        if (minP == 0 || (p->turn < minP->turn)){
+          minP = p;
+          minturn = minP->turn;
+          printf("minP Pid: %d, p pid: %d\n", minP->pid, p->pid);
+        }
+      }
+      release(&p->lock);
+    }
+    if (minP == 0){
+      continue;
+    }
+    acquire(&minP->lock);
+      if (minP->state == RUNNABLE && minturn == minP->turn){
+        // Switch to chosen process.  It is the process's job
+        // to release its lock and then reacquire it
+        // before jumping back to us.
+        minP->state = RUNNING;
+        c->proc = minP;
+        swtch(&c->context, &minP->context); // [t] - context is the kernel space of proccess
+        // [t]Q - what happend if the proccess not yet in sched()?
+        // [t]A - it start at the function forkret (search it)
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      }
+    release(&minP->lock);
+  
+  }
+}
+void scheduler_SRT(void){
+ for(;;);
+}
+int getRuntimeRatio(struct proc* p){ //ass1-task4.4
+    int decayfactor;
+    switch (p->priority)
+    {
+    case TESTHIGH:
+      decayfactor = 1;
+      break;
+    case HIGH:
+      decayfactor = 3;
+      break;
+    case NORMAL:
+      decayfactor = 5;
+      break;
+    case LOW:
+      decayfactor = 7;
+      break;
+    case TESTLOW:
+      decayfactor = 25;
+      break;
+    default:
+      panic("proc has illigal priority value");
+      break;
+    }
+
+    int runtimeRatio =  p->perf.rutime * decayfactor / 
+          (p->perf.rutime + p-> perf.stime); 
+  // printf("runtime: %d, sleeptime: %d, decayfator: %d, pid: %d\n", p->perf.rutime, p->perf.stime, decayfactor, p->pid);
+  if (runtimeRatio<0)
+    return 0;
+  else
+    return runtimeRatio;
+}
+void scheduler_CFSD(void){
+  struct proc *p;
+  struct cpu *c = mycpu();
   struct proc* minP = 0;
   c->proc = 0;
   for (;;)
@@ -534,23 +635,22 @@ void scheduler_FCFS(void){
   
   }
 }
-void scheduler_SRT(void){
- for(;;);
-}
-void scheduler_CFSD(void){
-
-  for(;;);
-}
 void scheduler(void)
 {
   #ifdef DEFAULT
+    printf("SCHEDFLAG = DEFAULT\n");
     scheduler_DEFAULT();
   #endif
   #ifdef FCFS
     printf("SCHEDFLAG = FCFS\n");
     scheduler_FCFS();
   #endif
-  
+  #ifdef CFSD
+    printf("SCHEDFLAG = CFSD\n");
+    scheduler_CFSD();
+    // scheduler_DEFAULT();
+  #endif
+
 }
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -592,6 +692,7 @@ void yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
+  p->turn = allocturn();
   sched();
   release(&p->lock);
 }
@@ -663,6 +764,7 @@ void wakeup(void *chan)
       if (p->state == SLEEPING && p->chan == chan)
       {
         p->state = RUNNABLE;
+        p->turn = allocturn();
       }
       release(&p->lock);
     }
@@ -686,6 +788,7 @@ int kill(int pid)
       {
         // Wake process from sleep().
         p->state = RUNNABLE;
+        p->turn = allocturn();
       }
       release(&p->lock);
       return 0;
@@ -832,6 +935,7 @@ void update_perf()
       break;
     case SLEEPING:
       p->perf.stime++;
+      // printf("update stime pid:%d, stime: %d\n",p->pid,p->perf.stime);
       break;
     /* case ZOMBIE:
       if (p->perf.ttime < 0)
