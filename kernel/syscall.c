@@ -6,7 +6,30 @@
 #include "proc.h"
 #include "syscall.h"
 #include "defs.h"
-
+static char* num_to_name_map[] = {
+  "fork",
+  "exit",
+  "wait",
+  "pipe",
+  "read",
+  "kill",
+  "exec",
+  "fstat",
+  "chdir",
+  "dup",
+  "getpid",
+  "sbrk",
+  "sleep",
+  "uptime",
+  "open",
+  "write",
+  "mknod",
+  "unlink",
+  "link",
+  "mkdir",
+  "close",
+  "trace",
+};
 // Fetch the uint64 at addr from the current process.
 int
 fetchaddr(uint64 addr, uint64 *ip)
@@ -30,6 +53,8 @@ fetchstr(uint64 addr, char *buf, int max)
     return err;
   return strlen(buf);
 }
+//getting the argument of the systemcall?
+//it is stored at specific register
 
 static uint64
 argraw(int n)
@@ -83,6 +108,24 @@ argstr(int n, char *buf, int max)
   return fetchstr(addr, buf, max);
 }
 
+void print_trace(struct proc* p, int num, int retval){
+    int mask = p->trace_mask;
+    int pid = p->pid;
+    if ((mask & 1 << num) != 0){
+      char* syscall_name = num_to_name_map[num-1];
+      if (num == 1){ //fork
+        printf("%d: syscall %s %s -> %d\n", pid, syscall_name, "NULL", retval);
+      }
+      else if (num == 6 || num ==12){
+        int argv;
+        argint(0, &argv);
+        printf("%d: syscall %s %d -> %d\n", pid, syscall_name, argv, retval);
+      }
+      else{
+        printf("%d: syscall %s -> %d\n", pid, syscall_name, retval);
+      }
+    }
+}
 extern uint64 sys_chdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_dup(void);
@@ -107,6 +150,7 @@ extern uint64 sys_uptime(void);
 extern uint64 sys_wait_stat(void);
 extern uint64 sys_set_priority(void);
 
+extern uint64 sys_trace(void);
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -131,17 +175,22 @@ static uint64 (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_wait_stat]   sys_wait_stat,
 [SYS_set_priority]   sys_set_priority,
+[SYS_trace]   sys_trace,
 };
 
 void
-syscall(void)
+syscall(void)  
 {
   int num;
   struct proc *p = myproc();
 
   num = p->trapframe->a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    p->trapframe->a0 = syscalls[num]();
+    //a0 stores the answer from the syscall
+    //process ID,”: syscall”, system call name, system call arguments,-> , return value
+    int retval = syscalls[num]();
+    print_trace(p,num,retval);
+    p->trapframe->a0 = retval;
   } else {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);

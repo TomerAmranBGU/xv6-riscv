@@ -112,6 +112,8 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 int             wait_stat(uint64 status , uint64 performence);
 int             set_priority(int priority);
+int            trace(int, int);
+
 // swtch.S
 void            swtch(struct context*, struct context*);
 

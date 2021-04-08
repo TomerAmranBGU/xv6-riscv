@@ -119,3 +119,12 @@ sys_set_priority(void){
     return -1;
   return set_priority(priority);
 }
+uint64
+sys_trace(void){
+  int mask;
+  int pid;
+  if(argint(0, &mask) < 0 || argint(1, &pid) < 0)
+    return -1;
+  printf("proccess called sys_trace with args mask:%d and pid:%d\n", mask, pid);
+  return trace(mask, pid);
+}

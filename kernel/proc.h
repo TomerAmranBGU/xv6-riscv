@@ -137,6 +137,7 @@ struct proc
   int ticks_counter;           // current running time counter
   int priority;                // priority of the procces which also is holds the value of the decay factor
   int turn;                    //ass1-task4
+  int trace_mask;               // task2
 };
 
 void update_perf();

@@ -149,6 +149,7 @@ found:
   p->pid = allocpid();
   p->state = USED;
   p->turn = allocturn();
+  p->trace_mask = 0;
   // Allocate a trapframe page.
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0)
   {
@@ -326,7 +327,8 @@ int fork(void)
     return -1;
   }
   np->sz = p->sz;
-
+  //ass1-task2
+  np->trace_mask = p->trace_mask;
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
@@ -1035,4 +1037,18 @@ int set_priority(int priority){
       release(&p->lock);
       return 0;
     }
+int 
+trace(int mask,int pid)
+{
+  struct proc* p;
+  for (p=proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if (p->pid == pid){
+      p->trace_mask = mask;
+      release(&p->lock);
+      return 0;
+    }
+    release(&p->lock);
+  }
+  return -1;
 }
