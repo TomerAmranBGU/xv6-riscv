@@ -3,6 +3,7 @@
 #include "kernel/types.h"
 #include "user/user.h"
 #include "kernel/fcntl.h"
+#include "kernel/stat.h"
 
 // Parsed command representation
 #define EXEC 1
@@ -59,6 +60,32 @@ int fork1(void); // Fork but panics on failure.
 void panic(char *);
 struct cmd *parsecmd(char *);
 
+//looks for the command in all posible paths from the '/path' file
+//and execute if found
+void
+look_for_command_in_PATH_and_exec(struct execcmd* ecmd){
+  char* command_name = ecmd->argv[0];
+  struct stat path_file_status;
+  if(stat("path", &path_file_status) == -1){
+    panic("can't find 'path' file");
+  }
+  char* path_buf = malloc(path_file_status.size);
+  int fd = open("path", O_RDONLY);
+  read(fd, path_buf, path_file_status.size);
+  printf(path_buf);
+  close(fd);
+  char* curr_path = path_buf;
+  while(curr_path < path_buf + path_file_status.size -1){
+    char* end = strchr(curr_path, ':');
+    int length = end-curr_path;
+    char* absolutePath = malloc(length +strlen(command_name));
+    //copy the prefix to absolute path
+    memmove(absolutePath, curr_path, length);
+    //copy the command name to the end of the absolute path
+    memmove(absolutePath+length, command_name, strlen(command_name));
+    exec(absolutePath, ecmd->argv);
+  }
+}
 // Execute cmd.  Never returns.
 void runcmd(struct cmd *cmd)
 {
@@ -78,11 +105,11 @@ void runcmd(struct cmd *cmd)
     panic("runcmd");
 
   case EXEC:
-    ecmd = (struct execcmd *)cmd;
-    if (ecmd->argv[0] == 0)
-      exit(1);
-    exec(ecmd->argv[0], ecmd->argv);
-
+    ecmd = (struct execcmd*)cmd;
+    if(ecmd->argv[0] == 0)
+      exit(1);    
+    // exec(ecmd->argv[0], ecmd->argv);
+    look_for_command_in_PATH_and_exec(ecmd);
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
 
