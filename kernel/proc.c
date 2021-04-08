@@ -1037,6 +1037,7 @@ int set_priority(int priority){
       release(&p->lock);
       return 0;
     }
+}
 int 
 trace(int mask,int pid)
 {

@@ -15,6 +15,8 @@ main(int argc, char *argv[]){
                 fprintf(2,"child arrived to %d\n",j);
             }
         }
+        fprintf(2,"should be -1: %d\n",set_priority(90));
+        exit(0);
     }
     else {
         fprintf(2,"child set priority and: %d\n",set_priority(HIGH));  
@@ -25,7 +27,6 @@ main(int argc, char *argv[]){
                 fprintf(2,"parent arrived to %d\n",j);
             }
         }
+        exit(0);
     }
-    fprintf(2,"should be -1: %d\n",set_priority(90));
-    exit(0);
 }
