@@ -353,6 +353,7 @@ int fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  
   release(&np->lock);
 
   return pid;
@@ -1016,4 +1017,22 @@ void update_perf()
     }
     release(&p->lock);
   }
+}
+
+int set_priority(int priority){
+    if (
+      priority != TESTHIGH &&
+      priority != HIGH &&
+      priority != NORMAL &&
+      priority != LOW &&
+      priority != TESTLOW
+    )
+    return -1;
+    else {
+      struct proc *p = myproc();
+      acquire(&p->lock);
+        p->priority = priority;
+      release(&p->lock);
+      return 0;
+    }
 }
