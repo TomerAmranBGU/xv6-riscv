@@ -81,7 +81,7 @@ usertrap(void)
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2){
     p->ticks_counter++;
-    printf("USER pid: %d, ticks_counter: %d\n", p->pid, p->ticks_counter);
+    // printf("USER pid: %d, ticks_counter: %d\n", p->pid, p->ticks_counter);
     //ass1-task4
     if (p->ticks_counter == QUNTOM)
         yield();
@@ -161,7 +161,7 @@ kerneltrap()
   if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING){
     struct proc* p = myproc();
     p->ticks_counter++;
-    printf("KERNEL pid: %d, ticks_counter: %d\n", p->pid, p->ticks_counter);
+    // printf("KERNEL pid: %d, ticks_counter: %d\n", p->pid, p->ticks_counter);
     //ass1-task4
     if (p->ticks_counter == QUNTOM)
         yield();

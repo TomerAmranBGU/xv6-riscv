@@ -561,7 +561,6 @@ void scheduler_FCFS(void)
         c->proc = 0;
       }
     release(&minP->lock);
-  
   }
 }
 
@@ -598,7 +597,46 @@ int getRuntimeRatio(struct proc* p){ //ass1-task4.4
     return runtimeRatio;
 }
 void scheduler_CFSD(void){
- for(;;);
+  struct proc *p;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+  for (;;)
+  {
+    struct proc* minP = 0;
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE )
+      {
+        // printf("pid: %d, turn: %d\n",p->pid, p->turn);
+        if (minP == 0 || (getRuntimeRatio(p) < getRuntimeRatio(minP))){
+          minP = p;
+          // printf("minP Pid: %d, p pid: %d\n", minP->pid, p->pid);
+        }
+      }
+      release(&p->lock);
+    }
+    if (minP == 0){
+      continue;
+    }
+    acquire(&minP->lock);
+      if (minP->state == RUNNABLE){
+        // Switch to chosen process.  It is the process's job
+        // to release its lock and then reacquire it
+        // before jumping back to us.
+        minP->state = RUNNING;
+        c->proc = minP;
+        swtch(&c->context, &minP->context); // [t] - context is the kernel space of proccess
+        // [t]Q - what happend if the proccess not yet in sched()?
+        // [t]A - it start at the function forkret (search it)
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      }
+    release(&minP->lock);
+  }
 }
 void scheduler_SRT(void)
 {
