@@ -194,7 +194,7 @@ void test_trace() {
 }
 
 void main(int argc, char *argv[]) {
-  // measure_performance(&test_srt);
+  measure_performance(&test_srt);
   test_set_priority();
   exit(0);
 }
