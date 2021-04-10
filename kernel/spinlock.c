@@ -29,6 +29,8 @@ acquire(struct spinlock *lk)
   //   a5 = 1
   //   s1 = &lk->locked
   //   amoswap.w.aq a5, a5, (s1)
+  // [t] - this is atomic operation that solve the mutal exclusion problem of busy wait
+  // be aware that this is still a stupid busy wait
   while(__sync_lock_test_and_set(&lk->locked, 1) != 0)
     ;
 
@@ -67,7 +69,8 @@ release(struct spinlock *lk)
   //   s1 = &lk->locked
   //   amoswap.w zero, zero, (s1)
   __sync_lock_release(&lk->locked);
-
+  // [t] - pushoof/popoff are a iteraupt control, the value at the head of the stack is deciding if iterupts are allowed or not 
+  // its cool and let us work with several locks
   pop_off();
 }
 

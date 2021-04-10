@@ -9,7 +9,7 @@ main(int argc, char *argv[]){
     if (pid ==0){    
         // fprintf(2,"parent set priority and: %d\n",set_priority(LOW));
         int j =0;
-        for (int i =0; i<10000; i++){
+        for (int i =0; i<1000; i++){
             j++;
             if (j%100 ==0){
                 fprintf(2,"child arrived to %d\n",j);
@@ -21,7 +21,7 @@ main(int argc, char *argv[]){
     else {
         fprintf(2,"child set priority and: %d\n",set_priority(HIGH));  
         int j =0;
-        for (int i =0; i<10000; i++){
+        for (int i =0; i<1000; i++){
             j++;
             if (j%100 ==0){
                 fprintf(2,"parent arrived to %d\n",j);
@@ -29,4 +29,5 @@ main(int argc, char *argv[]){
         }
         exit(0);
     }
+    exit(0);
 }

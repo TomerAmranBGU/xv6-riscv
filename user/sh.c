@@ -62,28 +62,31 @@ struct cmd *parsecmd(char *);
 
 //looks for the command in all posible paths from the '/path' file
 //and execute if found
-void
-look_for_command_in_PATH_and_exec(struct execcmd* ecmd){
-  char* command_name = ecmd->argv[0];
+void look_for_command_in_PATH_and_exec(struct execcmd *ecmd)
+{
+  char *command_name = ecmd->argv[0];
   struct stat path_file_status;
-  if(stat("path", &path_file_status) == -1){
+  if (stat("/path", &path_file_status) == -1)
+  {
     panic("can't find 'path' file");
   }
-  char* path_buf = malloc(path_file_status.size);
-  int fd = open("path", O_RDONLY);
+  char *path_buf = malloc(path_file_status.size);
+  int fd = open("/path", O_RDONLY);
   read(fd, path_buf, path_file_status.size);
   printf(path_buf);
   close(fd);
-  char* curr_path = path_buf;
-  while(curr_path < path_buf + path_file_status.size -1){
-    char* end = strchr(curr_path, ':');
-    int length = end-curr_path;
-    char* absolutePath = malloc(length +strlen(command_name));
+  char *curr_path = path_buf;
+  while (curr_path < path_buf + path_file_status.size - 1)
+  {
+    char *end = strchr(curr_path, ':');
+    int length = end - curr_path;
+    char *absolutePath = malloc(length + strlen(command_name));
     //copy the prefix to absolute path
     memmove(absolutePath, curr_path, length);
     //copy the command name to the end of the absolute path
-    memmove(absolutePath+length, command_name, strlen(command_name));
+    memmove(absolutePath + length, command_name, strlen(command_name));
     exec(absolutePath, ecmd->argv);
+    curr_path = end + 1;
   }
 }
 // Execute cmd.  Never returns.
@@ -105,10 +108,10 @@ void runcmd(struct cmd *cmd)
     panic("runcmd");
 
   case EXEC:
-    ecmd = (struct execcmd*)cmd;
-    if(ecmd->argv[0] == 0)
+    ecmd = (struct execcmd *)cmd;
+    if (ecmd->argv[0] == 0)
       exit(1);    
-    // exec(ecmd->argv[0], ecmd->argv);
+    exec(ecmd->argv[0], ecmd->argv);
     look_for_command_in_PATH_and_exec(ecmd);
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
@@ -179,7 +182,7 @@ int getcmd(char *buf, int nbuf)
 
 int main(void)
 {
-  fprintf(2,"started shell\n");
+  fprintf(2, "started shell\n");
   static char buf[100];
   int fd;
 
