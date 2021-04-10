@@ -91,7 +91,10 @@ uint64
 sys_uptime(void)
 {
   uint xticks;
-
+  // [t] -- inside the acquire function, there is a disable
+  // of interupts, it's important, because every tick there is a stop and the procces arive here again
+  // trying to acuire the same lock twice will crush the proccess
+  // it's a very clever thing! nice!
   acquire(&tickslock);
   xticks = ticks;
   release(&tickslock);
