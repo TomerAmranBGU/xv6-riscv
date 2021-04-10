@@ -541,7 +541,6 @@ void scheduler_FCFS(void)
         if (minP == 0 || (p->turn < minP->turn)){
           minP = p;
           minturn = minP->turn;
-          printf("minP Pid: %d, p pid: %d\n", minP->pid, p->pid);
         }
       }
       release(&p->lock);
