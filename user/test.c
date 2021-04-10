@@ -182,11 +182,13 @@ void test_trace() {
   trace((1 << SYS_getpid) | (1 << SYS_fork) | (1 << SYS_sbrk), getpid());
 
   if(fork() == 0){
-    trace((1 << SYS_sbrk), getpid());
+    trace((1 << SYS_sbrk | 1<< SYS_kill), getpid());
+    kill(90);
     fprintf(2, "child process id: %d\n", getpid());
     str = malloc(1024);
   } else {
     wait(0);
+    sbrk(1<<15);
     fprintf(2, "parent process id: %d\n", getpid());
     str = malloc(1024);
     memcpy(str, "hello", 6);
@@ -194,7 +196,8 @@ void test_trace() {
 }
 
 void main(int argc, char *argv[]) {
-  measure_performance(&test_srt);
-  test_set_priority();
+  // measure_performance(&test_srt);
+  // test_set_priority();
+  test_trace();
   exit(0);
 }
