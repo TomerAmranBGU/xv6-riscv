@@ -644,10 +644,10 @@ void scheduler_SRT(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  struct proc *minBurst = 0;
   c->proc = 0;
   for (;;)
   {
+    struct proc *minBurst = 0;
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
     for (p = proc; p < &proc[NPROC]; p++)
@@ -655,10 +655,10 @@ void scheduler_SRT(void)
       acquire(&p->lock);
       if (p->state == RUNNABLE)
       {
-        if (minBurst == 0 || (p->perf.ctime < minBurst->perf.ctime))
+        if (minBurst == 0 || (p->perf.avrage_bursttime < minBurst->perf.avrage_bursttime))
         {
           minBurst = p;
-          printf("minBurst Pid: %d, p pid: %d\n", minBurst->pid, p->pid);
+          // printf("minBurst Pid: %d, p pid: %d\n", minBurst->pid, p->pid);
         }
       }
       release(&p->lock);
