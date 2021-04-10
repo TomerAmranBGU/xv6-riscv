@@ -3,15 +3,16 @@
 #include "user/user.h"
 #include "kernel/fcntl.h"
 
+
 struct perf
 {
   /* data */
-int ctime;
-int ttime;
-int stime;
-int retime;
-int rutime;  
-int avrage;
+  int ctime;
+  int ttime;
+  int stime;
+  int retime;
+  int rutime;
+  int avrage_bursttime;
 };
 
 
@@ -31,7 +32,7 @@ void print_performance(struct perf *perf) {
   printf("running time:     %d\n", perf->rutime);
   printf("runnable time:    %d\n", perf->retime);
   printf("sleeping time:    %d\n", perf->stime);
-  
+  printf("burst time:       %d\n", perf->avrage_bursttime);
 }
 
 void print_wait_stat() {
@@ -129,9 +130,32 @@ void test_bursttime(void) {
 }
 
 void test_set_priority() {
-#ifdef SCHED_CFSD
-set_priority(3);
-#endif
+  #ifdef SCHED_CFSD
+  int pid = fork();
+  if (pid == 0) {
+    if (set_priority(6) >= 0) {
+      printf("set priority: call didn't fail on 6.\n");
+      exit(7);
+    }
+    for (int i = 5; i > 0; i--) {
+      if (set_priority(i) < 0) {
+        printf("set priority: call failed on %d.\n", i);
+        exit(i + 1);
+      }
+    }
+    if (set_priority(0) >= 0) {
+      printf("set priority: call didn't fail on 0.\n");
+      exit(1);
+    }
+    run_for(4);
+    sleep(2);
+    printf("child exiting...\n");
+    exit(0);
+  }
+  else {
+    wait(0);
+  }
+  #endif
 }
 
 void measure_performance(void (*child_task)(void)) {
@@ -153,24 +177,24 @@ void test_uptime() {
   printf("%d, %d, %d\n", t0, t1, dt);
 }
 
-// void test_trace() {
-//   char *str = 0;
-//   trace((1 << SYS_getpid) | (1 << SYS_fork) | (1 << SYS_sbrk), getpid());
+void test_trace() {
+  char *str = 0;
+  trace((1 << SYS_getpid) | (1 << SYS_fork) | (1 << SYS_sbrk), getpid());
 
-//   if(fork() == 0){
-//     trace((1 << SYS_sbrk), getpid());
-//     fprintf(2, "child process id: %d\n", getpid());
-//     str = malloc(1024);
-//   } else {
-//     wait(0);
-//     fprintf(2, "parent process id: %d\n", getpid());
-//     str = malloc(1024);
-//     memcpy(str, "hello", 6);
-//   }
-// }
+  if(fork() == 0){
+    trace((1 << SYS_sbrk), getpid());
+    fprintf(2, "child process id: %d\n", getpid());
+    str = malloc(1024);
+  } else {
+    wait(0);
+    fprintf(2, "parent process id: %d\n", getpid());
+    str = malloc(1024);
+    memcpy(str, "hello", 6);
+  }
+}
 
 void main(int argc, char *argv[]) {
-  measure_performance(&test_wait_stat_task);
-  // test_trace();
+  // measure_performance(&test_srt);
+  test_set_priority();
   exit(0);
 }
