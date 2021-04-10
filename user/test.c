@@ -153,24 +153,24 @@ void test_uptime() {
   printf("%d, %d, %d\n", t0, t1, dt);
 }
 
-// void test_trace() {
-//   char *str = 0;
-//   trace((1 << SYS_getpid) | (1 << SYS_fork) | (1 << SYS_sbrk), getpid());
+void test_trace() {
+  char *str = 0;
+  trace((1 << SYS_getpid) | (1 << SYS_fork) | (1 << SYS_sbrk), getpid());
 
-//   if(fork() == 0){
-//     trace((1 << SYS_sbrk), getpid());
-//     fprintf(2, "child process id: %d\n", getpid());
-//     str = malloc(1024);
-//   } else {
-//     wait(0);
-//     fprintf(2, "parent process id: %d\n", getpid());
-//     str = malloc(1024);
-//     memcpy(str, "hello", 6);
-//   }
-// }
+  if(fork() == 0){
+    trace((1 << SYS_sbrk), getpid());
+    fprintf(2, "child process id: %d\n", getpid());
+    str = malloc(1024);
+  } else {
+    wait(0);
+    fprintf(2, "parent process id: %d\n", getpid());
+    str = malloc(1024);
+    memcpy(str, "hello", 6);
+  }
+}
 
 void main(int argc, char *argv[]) {
   measure_performance(&test_wait_stat_task);
-  // test_trace();
+  test_trace();
   exit(0);
 }
