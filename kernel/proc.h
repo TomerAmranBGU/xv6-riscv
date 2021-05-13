@@ -100,11 +100,15 @@ enum procstate
 {
   UNUSED,
   USED,
-  SLEEPING,
   RUNNABLE,
-  RUNNING,
   ZOMBIE
 };
+// struct sigaction_{
+//   void (*sa_handler)(int);
+//   uint sigmask;
+// };
+
+
 
 // Per-process state
 struct thread
@@ -114,11 +118,15 @@ struct thread
   enum threadstate state;      // Thread state
   int killed;                  // If non-zero, have been killed
   void *chan;                  // If non-zero, sleeping on chan
+  int stopped;                 // if non-zero, have been stopped
+  int xstate;                  // Exit status to be returned to parent's wait
+  int pid;                     // Process ID
+
+  // proc_tree_lock must be held when using this:
   struct proc *parent;         // Parent process
   uint64 kstack;               // Virtual address of kernel stack
   struct trapframe *trapframe; // data page for trampoline.S
   struct context context;      // swtch() here to run thread
-  int xstate;
   int tid;                     // Thread id in reference to it's brother threads 
   int cid;
    // Thread id in reference to all kernel threads.

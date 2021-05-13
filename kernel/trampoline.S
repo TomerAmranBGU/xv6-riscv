@@ -1,3 +1,12 @@
+#include "syscall.h"
+.globl sigretStart
+.globl sigretEnd
+sigretStart:
+        li a7, SYS_sigret
+        ecall
+        jal exit 
+        # the above line is not needed necause the trapfrae is change at the sigret system call
+sigretEnd:
 	#
         # code to switch between user and kernel space.
         #

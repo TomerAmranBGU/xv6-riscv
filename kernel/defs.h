@@ -89,11 +89,12 @@ int growproc(int);
 void proc_mapstacks(pagetable_t);
 pagetable_t proc_pagetable(struct proc *);
 void proc_freepagetable(pagetable_t, uint64);
-int kill(int, int);
+int kill(int,int);
 struct cpu *mycpu(void);
 struct cpu *getmycpu(void);
 struct proc *myproc();
 void procinit(void);
+void bseminit(void);
 void scheduler(void) __attribute__((noreturn));
 void sched(void);
 void setproc(struct proc *);
@@ -108,13 +109,17 @@ int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void procdump(void);
 uint sigprocmask(uint sigmask);
 int sigaction(int signum, uint64 act, uint64 oldact);
-void sigret(void); 
-void exit_all_other_threads();
-void stop();
 int kthread_create(uint64 start_func, uint64 stack); 
 int kthread_id(); 
 void kthread_exit(int status); 
 int kthread_join(int thread_id, uint64 status);
+
+void sigret(void);
+int bsem_alloc();
+void bsem_free(int);
+void bsem_down(int);
+void bsem_up(int);
+
 
 // swtch.S
 void swtch(struct context *, struct context *);

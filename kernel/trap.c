@@ -15,7 +15,7 @@ extern char trampoline[], uservec[], userret[];
 void kernelvec();
 
 extern int devintr();
-
+extern int handle_pending_signals();
 void
 trapinit(void)
 {
@@ -98,13 +98,15 @@ usertrapret(void)
 {
   struct proc *p = myproc();
   struct thread *t = mythread();
+  if (!p->handling_signal){
+    handle_pending_signals();
+  }
+  
 
   // we're about to switch the destination of traps from
   // kerneltrap() to usertrap(), so turn off interrupts until
   // we're back in user space, where usertrap() is correct.
   intr_off();
-  handle_kernel_signals();
-  // handle_user_signals();
 
   // send syscalls, interrupts, and exceptions to trampoline.S
   w_stvec(TRAMPOLINE + (uservec - trampoline));
@@ -161,7 +163,7 @@ kerneltrap()
   }
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+  if(which_dev == 2 && myproc() != 0 && mythread()->state == T_RUNNING)
     yield();
 
   // the yield() may have caused some traps to occur,

@@ -5,10 +5,15 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
-
+#include "bsem.h"
+extern void *sigretStart;
+extern void *sigretEnd;
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
+
+struct bsem bsem[MAX_BSEM];
+struct spinlock bsem_lock;
 
 struct proc *initproc;
 
@@ -474,6 +479,7 @@ void userinit(void)
   p->cwd = namei("/");
 
   p->main_thread->state = T_RUNNABLE; // change in the code
+  p->state = RUNNABLE;
   release(&p->lock);
 }
 
@@ -556,6 +562,7 @@ int fork(void)
 
   acquire(&np->main_thread->lock);
   np->main_thread->state = T_RUNNABLE;
+  np->state = RUNNABLE;
   release(&np->main_thread->lock);
   return pid;
 }
@@ -790,7 +797,7 @@ void scheduler(void)
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
-      if (p->state == UNUSED)
+      if (p->state != RUNNABLE)
       {
         release(&p->lock);
         continue;
@@ -938,29 +945,21 @@ void wakeup(void *chan)
     release(&p->lock);
   }
 }
-
-// Kill the process with the given pid.
-// The victim won't exit until it tries to return
-// to user space (see usertrap() in trap.c).
-// ADDED: changed the kill system call to be like linux!
+//arg1: pid, arg2: signum
+//sends signal signum to proccess pid
 int kill(int pid, int signum)
 {
-  if (signum < 0 || signum >= 32)
-  {
+  if (signum < 0 || signum > 31)
     return -1;
-  }
   struct proc *p;
   for (p = proc; p < &proc[NPROC]; p++)
   {
-    acquire(&p->lock);
     if (p->pid == pid)
     {
-      // printf("kill: sending %d signal to %d\n", signum, p->pid);
+      printf("pid: %d got signal: %d\n", pid, signum);
       p->pending_signals |= 1 << signum;
-      release(&p->lock);
       return 0;
     }
-    release(&p->lock);
   }
   return -1;
 }
@@ -1029,15 +1028,21 @@ void procdump(void)
 // ADDED: sigprocmask system call
 uint sigprocmask(uint sigmask)
 {
+  if (sigmask & 1 << SIGKILL)
+  {
+    printf("you are not allowed to block SIGKILL!\n");
+    return -1;
+  };
+  if (sigmask & 1 << SIGSTOP)
+  {
+    printf("you are not allowed to block SIGSTOP!\n");
+    return -1;
+  };
+
   struct proc *p = myproc();
   uint prev_signalmask;
   acquire(&p->lock);
   prev_signalmask = p->signal_mask;
-  if ((sigmask & (1 << SIGKILL)) || (sigmask & (1 << SIGSTOP)))
-  {
-    release(&p->lock);
-    return -1;
-  }
   p->signal_mask = sigmask;
   release(&p->lock);
   return prev_signalmask;
@@ -1046,8 +1051,9 @@ uint sigprocmask(uint sigmask)
 // ADDED: sigaction system call
 int sigaction(int signum, uint64 act, uint64 oldact)
 {
+  printf("sigaction\n");
   struct proc *p = myproc();
-  struct sigaction new, old;
+  struct sigaction_ new, old;
   acquire(&p->lock);
   if (signum < 0 || signum > (32 - 1) || signum == SIGKILL || signum == SIGSTOP)
   {
@@ -1056,9 +1062,10 @@ int sigaction(int signum, uint64 act, uint64 oldact)
   }
   if (oldact != 0)
   {
-    old.sa_handler = p->sighandlers[signum];
+    old.sa_handler_ = p->sighandlers[signum];
     old.sigmask = p->sighandlers_mask[signum];
-    if (copyout(p->pagetable, oldact, (char *)&old, sizeof(struct sigaction)) < 0)
+    if (copyout(p->pagetable, oldact, (char *)&old,
+                sizeof(struct sigaction_)) < 0)
     {
       release(&p->lock);
       return -1;
@@ -1066,17 +1073,28 @@ int sigaction(int signum, uint64 act, uint64 oldact)
   }
   if (act != 0)
   {
-    if (copyin(p->pagetable, (char *)&new, act, sizeof(struct sigaction)) < 0)
+    //check validity of mask
+
+    if (copyin(p->pagetable, (char *)&new, act,
+               sizeof(struct sigaction_)) < 0)
     {
       release(&p->lock);
       return -1;
     }
-    if ((new.sigmask & 1 << SIGKILL) || (new.sigmask & 1 << SIGSTOP))
+    if (new.sigmask & 1 << SIGKILL)
     {
+      printf("sigmask of handler can't block SIGKILL\n");
       release(&p->lock);
       return -1;
     }
-    p->sighandlers[signum] = new.sa_handler;
+    if (new.sigmask & 1 << SIGSTOP)
+    {
+      printf("sigmask of handler can't block SIGSTOP\n");
+      release(&p->lock);
+      return -1;
+    }
+
+    p->sighandlers[signum] = new.sa_handler_;
     p->sighandlers_mask[signum] = new.sigmask;
   }
   release(&p->lock);
@@ -1093,167 +1111,195 @@ void sigret(void)
   memmove(t->trapframe, p->trapframe_backup, sizeof(struct trapframe));
   p->signal_mask = p->signal_mask_backup;
   p->handling_signal = 0;
-  release(&t->lock);
-  release(&p->lock);
 }
 
-uint should_continue()
+void sigcont(struct proc *p)
 {
-  struct proc *p = myproc();
-  uint retval = 0;
   acquire(&p->lock);
-  uint pending = p->pending_signals & ~(p->signal_mask);
-  for (int signal = 0; signal < 32; signal++)
-  {
-    if ((pending & (1 << signal)) && signal != SIGSTOP)
-    {
-      if (signal == SIGCONT && p->sighandlers[SIGCONT] == (void *)SIG_DFL)
-      {
-        retval = 1;
-        break;
-      }
-      else if (p->sighandlers[signal] == (void *)SIGCONT)
-      {
-        retval = 1;
-        break;
-      }
-    }
-  }
-  release(&p->lock);
-  return retval;
-}
-
-uint got_killing_signal()
-{
-  struct proc *p = myproc();
-  uint retval = 0;
-  acquire(&p->lock);
-  uint pending = p->pending_signals & ~(p->signal_mask);
-  for (int signal = 0; signal < 32; signal++)
-  {
-    if ((pending & (1 << signal)) && signal != SIGSTOP)
-    {
-      if (signal == SIGKILL)
-      {
-        retval = 1;
-        break;
-      }
-      else if (signal == SIGCONT && p->sighandlers[signal] == (void *)SIGKILL)
-      {
-        retval = 1;
-        break;
-      }
-      else if (p->sighandlers[signal] == (void *)SIG_DFL || p->sighandlers[signal] == (void *)SIGKILL)
-      {
-        retval = 1;
-        break;
-      }
-    }
-  }
-  release(&p->lock);
-  return retval;
-}
-
-// ADDED: stop signal handler
-void stop_handler()
-{
-  struct proc *p = myproc();
-  p->stopped_non_zero = 1;
-  p->sighandlers[SIGCONT] = (void *)SIG_DFL;
-}
-
-// ADDED: cont signal handler
-void cont_handler(int signal)
-{
-  struct proc *p = myproc();
   p->stopped_non_zero = 0;
-  p->sighandlers[signal] = (void *)SIG_IGN;
-}
-
-// ADDED: handle kernel signals
-void handle_kernel_signals()
-{
-  struct proc *p = myproc();
-  if (p->pid > 2)
-  {
-    // printf("kernel_signals: acquiring locks %d\n", p->pid);
-    acquire(&p->lock);
-    // printf("kernel_signals: acquired locks %d\n", p->pid);
-  }
-  else
-  {
-    acquire(&p->lock);
-  }
-  uint pending = p->pending_signals & ~(p->signal_mask);
-  for (int signal = 0; signal < 32; signal++)
-  {
-    if (pending & (1 << signal))
-    {
-      void *handler = p->sighandlers[signal];
-      if ((handler == (void *)SIG_DFL && signal == SIGSTOP) || handler == (void *)SIGSTOP)
-      {
-        p->pending_signals &= ~(1 << signal);
-        stop_handler();
-      }
-      else if ((handler == (void *)SIG_DFL && signal == SIGCONT) || handler == (void *)SIGCONT)
-      {
-        p->pending_signals &= ~(1 << signal);
-        cont_handler(signal);
-      }
-      else if ((handler == (void *)SIG_DFL) || (handler == (void *)SIGKILL))
-      {
-        p->pending_signals &= ~(1 << signal);
-        release(&p->lock);
-        exit(-1);
-      }
-      else if (handler == (void *)SIG_IGN)
-      {
-        p->pending_signals &= ~(1 << signal);
-      }
-    }
-  }
   release(&p->lock);
 }
-
-// ADDED: handle user signals
-void handle_user_signals()
+void sigkill()
 {
   struct proc *p = myproc();
-  struct thread *t = mythread();
-  uint64 call_size;
-  acquire(&p->lock);
-  acquire(&t->lock);
-  uint pending = p->pending_signals & ~(p->signal_mask);
-  for (int signal = 0; signal < 32; signal++)
-  {
-    if (pending & (1 << signal))
-    {
-      p->handling_signal = 1;
-      p->pending_signals &= ~(1 << signal);
-      void *handler = p->sighandlers[signal];
-      memmove(p->trapframe_backup, t->trapframe, sizeof(struct trapframe));
-      p->signal_mask_backup = p->signal_mask;
-      p->signal_mask = p->sighandlers_mask[signal];
-      call_size = (uint64)&call_end - (uint64)&call_start;
-      t->trapframe->sp -= call_size;
-      copyout(p->pagetable, (uint64)(t->trapframe->sp), (char *)&call_start, call_size);
-      t->trapframe->a0 = signal;
-      t->trapframe->ra = t->trapframe->sp;
-      t->trapframe->epc = (uint64)handler;
-      break;
-    }
-  }
-  release(&t->lock);
-  release(&p->lock);
+  p->killed = 1;
 }
-
-void stop()
+void sigstop()
 {
   struct proc *p = myproc();
-  while (p->stopped_non_zero && !should_continue() && !got_killing_signal())
+  printf("pid:%d got SIGSTOP\n", p->pid);
+  p->stopped_non_zero = 1;
+  while ((p->pending_signals & 1 << SIGCONT) == 0)
   {
     yield();
   }
+  p->stopped_non_zero = 0;
+  p->pending_signals ^= 1 << SIGCONT;
 }
+void init_userhandler(int signum)
+{
+  struct proc *p = myproc();
+  printf("initiatig userhandler\n");
+  p->signal_mask_backup = p->signal_mask;
+  p->handling_signal = 1;
+  memmove(p->trapframe_backup, p->trapframe, sizeof(struct trapframe));
+  p->trapframe->epc = (uint64)p->sighandlers[signum];                                     // after trampoline user space will start from what is in epc
+  p->trapframe->sp -= sigretEnd - sigretStart;                                            //freeeing space to put sigret on users stack
+  copyout(p->pagetable, p->trapframe->sp, (char *)&sigretStart, sigretEnd - sigretStart); //put sigret in userspace so we can run it
+  p->trapframe->a0 = signum;
+  p->trapframe->ra = p->trapframe->sp; // after doing user_handler return address is the sigret call
+  p->pending_signals = p->pending_signals ^ (1 << signum);
+  //after this we go back to trap.c, loading the modifieded trapframe and we happy.
+}
+void handle_pending_signals()
+{
 
-int kthread_id() { return mythread()->tid; }
+  struct proc *p = myproc();
+  //kernel handlers
+  if (p->pending_signals & 1 << SIGKILL)
+  {
+    p->killed = 1;
+    p->pending_signals ^= 1 << SIGKILL;
+    return;
+  }
+  if (p->pending_signals & 1 << SIGSTOP)
+  {
+    sigstop();
+    p->pending_signals ^= 1 << SIGSTOP;
+  }
+  // if (p->pending_signals & 1<<SIGCONT){
+  //   p->stopped =0;
+  //   p->pending_signals ^= 1<<SIGCONT;
+  // }
+  for (int signum = 0; signum < 32; signum++)
+  {
+
+    int signal_is_pending = p->pending_signals & 1 << signum;
+    int signal_is_blocked = p->signal_mask & 1 << signum;
+    // printf("signum:%d, pending:%d, blocked:%d\n",signum,signal_is_pending,signal_is_blocked);
+    if (signal_is_pending)
+      if (!signal_is_blocked)
+      {
+        printf("signal is pending and is not blocked\n");
+        switch (signum)
+        {
+        case SIGKILL:
+          break;
+        case SIGSTOP:
+          break;
+        case SIGCONT:
+          break;
+        default:
+          //do user handler
+          printf("do userhandler\n");
+          p->pending_signals ^= 1 << signum;
+          void *handler = p->sighandlers[signum];
+          switch ((uint64)handler)
+          {
+          case SIGKILL:
+            sigkill();
+            break;
+          case SIGSTOP:
+            sigstop();
+            break;
+          case SIGCONT:
+            sigcont(p);
+          case SIG_DFL:
+            sigkill();
+          case SIG_IGN:
+            break;
+          default:
+            init_userhandler(signum);
+          }
+        }
+      }
+  }
+}
+void bseminit()
+{
+  initlock(&bsem_lock, "bsem_lock");
+  acquire(&bsem_lock);
+  for (struct bsem *bs = bsem; bs < bsem + MAX_BSEM; bs++)
+  {
+    initlock(&bs->bslock, "bsem");
+  }
+  release(&bsem_lock);
+}
+int bsem_alloc()
+{
+  // here we need a lock for the whole bsem array
+  // this to a vooid a situation where 2 proccess find the same
+  // index as unused bsem. then both of them will try to acuire
+  acquire(&bsem_lock);
+  for (struct bsem *bs = bsem; bs < bsem + MAX_BSEM; bs++)
+  {
+    if (bs->state == BSUNUSED)
+    {
+      bs->state = BSFREE;
+      release(&bsem_lock);
+      int descriptor = (bs - bsem) / sizeof(struct bsem);
+      return descriptor;
+    }
+  }
+  release(&bsem_lock);
+  return -1;
+};
+void bsem_free(int descriptor)
+{
+  if (descriptor < 0 || descriptor > MAX_BSEM)
+    return;
+  // lock for the whole array is needed like in bsem_alloc
+  acquire(&bsem_lock);
+  struct bsem bs = bsem[descriptor];
+  if (bs.state == BSACQUIRED)
+  {
+    release(&bsem_lock);
+    panic("freeing ACQUIRED bsem is unsupported\n");
+    return;
+  }
+  bs.state = BSFREE;
+  release(&bsem_lock);
+};
+void bsem_down(int descriptor)
+{
+  if (descriptor < 0 || descriptor > MAX_BSEM)
+    return;
+  struct bsem bs = bsem[descriptor];
+  acquire(&bs.bslock);
+  if (bs.state == BSUNUSED)
+  {
+    release(&bs.bslock);
+    printf("can't down on pre-allocated bsem\n");
+    return;
+  }
+  while (bs.state == BSACQUIRED)
+  {
+    sleep(&bs, &bs.bslock);
+    if (myproc()->killed)
+    {
+      return;
+    }
+  }
+  bs.state = BSACQUIRED;
+  release(&bs.bslock);
+};
+void bsem_up(int descriptor)
+{
+  if (descriptor < 0 || descriptor > MAX_BSEM)
+    return;
+  struct bsem bs = bsem[descriptor];
+  acquire(&bs.bslock);
+  if (bs.state != BSACQUIRED)
+  {
+    release(&bs.bslock);
+    return;
+  }
+  bs.state = BSFREE;
+  wakeup(&bs);
+  release(&bs.bslock);
+};
+
+int kthread_id()
+{
+  return mythread()->tid;
+};

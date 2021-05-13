@@ -79,11 +79,14 @@ sys_sleep(void)
 uint64
 sys_kill(void)
 {
-    int pid;
-    int signum;
-    if (argint(0, &pid) < 0 || argint(1, &signum) < 0)
-        return -1;
-    return kill(pid, signum);
+  int pid;
+  //task 2.2.1
+  int signum;
+  if (argint(0, &pid) < 0)
+    return -1;
+  if (argint(1, &signum) < 0)
+    return -1;
+  return kill(pid,signum);
 }
 
 // return how many clock tick interrupts have occurred
@@ -166,5 +169,30 @@ sys_kthread_join(void)
         return -1;
     }
     return kthread_join(thread_id, status_addr);
+  return 0;
+}
+
+int  sys_bsem_alloc(void){
+  return bsem_alloc();
+};
+void sys_bsem_free(void){
+  int descriptor;
+  if (argint(0, &descriptor) < 0)
+    panic("can't read arg from user space");
+  return bsem_free(descriptor);
+};
+void sys_bsem_down(void){
+  int descriptor;
+  if (argint(0, &descriptor) < 0)
+        panic("can't read arg from user space");
+
+  return bsem_down(descriptor);
+};
+void sys_bsem_up(void){
+  int descriptor;
+  if (argint(0, &descriptor) < 0)
+        panic("can't read arg from user space");
+
+  return bsem_up(descriptor);
 }
 

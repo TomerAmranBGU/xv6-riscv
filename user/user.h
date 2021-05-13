@@ -9,7 +9,7 @@ int pipe(int*);
 int write(int, const void*, int);
 int read(int, void*, int);
 int close(int);
-int kill(int, int);
+int kill(int,int);
 int exec(char*, char**);
 int open(const char*, int);
 int mknod(const char*, short, short);
@@ -24,12 +24,16 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 uint sigprocmask(uint sigmask);
-int sigaction (int signum, const struct sigaction*act, struct sigaction *oldact);
+int sigaction (int signum, const struct sigaction_ *act, struct sigaction_ *oldact);
 void sigret(void);
 int kthread_create(void (*start_func) (), void *stack);
 int kthread_id();
 int kthread_exit(int status);
 int kthread_join(int thread_id, int *status);
+int bsem_alloc();
+void bsem_free(int);
+void bsem_down(int);
+void bsem_up(int);
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
@@ -46,3 +50,9 @@ void free(void*);
 int atoi(const char*);
 int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
+
+#define SIG_DFL 0 /* default signal handling */
+#define SIG_IGN 1 /* ignore signal */
+#define SIGKILL 9
+#define SIGSTOP 17
+#define SIGCONT 19
