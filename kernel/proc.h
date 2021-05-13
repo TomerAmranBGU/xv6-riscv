@@ -1,5 +1,6 @@
 // Saved registers for kernel context switches.
-struct context {
+struct context
+{
   uint64 ra;
   uint64 sp;
 
@@ -18,12 +19,16 @@ struct context {
   uint64 s11;
 };
 
+#define NTHREADS 8
+
 // Per-CPU state.
-struct cpu {
-  struct proc *proc;          // The process running on this cpu, or null.
-  struct context context;     // swtch() here to enter scheduler().
-  int noff;                   // Depth of push_off() nesting.
-  int intena;                 // Were interrupts enabled before push_off()?
+struct cpu
+{
+  struct proc *proc;      // The process running on this cpu, or null.
+  struct context context; // swtch() here to enter scheduler().
+  int noff;               // Depth of push_off() nesting.
+  int intena;             // Were interrupts enabled before push_off()?
+  struct thread *thread;
 };
 
 extern struct cpu cpus[NCPU];
@@ -41,7 +46,8 @@ extern struct cpu cpus[NCPU];
 // the trapframe includes callee-saved user registers like s0-s11 because the
 // return-to-user path via usertrapret() doesn't return through
 // the entire kernel call stack.
-struct trapframe {
+struct trapframe
+{
   /*   0 */ uint64 kernel_satp;   // kernel page table
   /*   8 */ uint64 kernel_sp;     // top of process's kernel stack
   /*  16 */ uint64 kernel_trap;   // usertrap()
@@ -80,40 +86,78 @@ struct trapframe {
   /* 280 */ uint64 t6;
 };
 
-enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+enum threadstate
+{
+  T_UNUSED,
+  T_USED,
+  T_SLEEPING,
+  T_RUNNABLE,
+  T_RUNNING,
+  T_ZOMBIE
+};
+
+enum procstate
+{
+  UNUSED,
+  USED,
+  SLEEPING,
+  RUNNABLE,
+  RUNNING,
+  ZOMBIE
+};
 
 // Per-process state
-struct proc {
+struct thread
+{
   struct spinlock lock;
 
-  // p->lock must be held when using these:
-  enum procstate state;        // Process state
-  void *chan;                  // If non-zero, sleeping on chan
+  enum threadstate state;      // Thread state
   int killed;                  // If non-zero, have been killed
-  int xstate;                  // Exit status to be returned to parent's wait
-  int pid;                     // Process ID
-
-  // proc_tree_lock must be held when using this:
+  void *chan;                  // If non-zero, sleeping on chan
   struct proc *parent;         // Parent process
-
-  // these are private to the process, so p->lock need not be held.
   uint64 kstack;               // Virtual address of kernel stack
-  uint64 sz;                   // Size of process memory (bytes)
-  pagetable_t pagetable;       // User page table
   struct trapframe *trapframe; // data page for trampoline.S
-  struct context context;      // swtch() here to run process
-  struct file *ofile[NOFILE];  // Open files
-  struct inode *cwd;           // Current directory
-  char name[16];               // Process name (debugging)
-  //task 2.1.2
-  uint pending_signals;
-  uint sigmask;
-  void* sighandlers[32];
-  uint sighandlers_mask[32];
-  int signal_mask;
-  int signal_mask_backup;
-  int signal_handler;
-  struct trapframe* trapframe_backup;
+  struct context context;      // swtch() here to run thread
+  int xstate;
+  int tid;                     // Thread id in reference to it's brother threads 
+  int cid;
+   // Thread id in reference to all kernel threads.
+}; 
+
+struct proc
+{
+    struct spinlock lock;
+
+    int pid;
+    // Process ID
+    //ADDED: signal stuff
+    struct spinlock join_lock;
+    uint pending_signals;
+    uint signal_mask;
+    uint sighandlers_mask[32];
+    void *sighandlers[32];
+    struct trapframe *trapframe_backup;
+    struct trapframe *trapframe;
+    uint signal_mask_backup;
+    uint handling_signal;
+    int killed;
+    int exiting_from_the_system;
+    int xstate; // Exit status to be returned to parent's wait
+    int stopped_non_zero; // If non-zero
+    struct thread *main_thread;
+
+    struct thread threads[NTHREADS];
+    enum procstate state;
+    uint64 sz;                  // Size of process memory (bytes)
+    pagetable_t pagetable;      // User page table
+    struct file *ofile[NOFILE]; // Open files
+    struct inode *cwd;          // Current directory
+    char name[16];              // Process name (debugging)
+    struct proc *parent;        // Parent process
+
+    // uint64 kstack;               // Virtual address of kernel stack
+    // struct trapframe *trapframe; // data page for trampoline.S
+    // struct context context;      // swtch() here to run process
 };
 //[t] - should thous marocs be here?
 #define SIG_DFL 0 /* default signal handling */
@@ -121,3 +165,6 @@ struct proc {
 #define SIGKILL 9
 #define SIGSTOP 17
 #define SIGCONT 19
+
+void handle_kernel_signals();
+void handle_user_signals();

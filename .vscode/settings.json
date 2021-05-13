@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "memory": "c",
+        "*.tcc": "c",
+        "fstream": "c",
+        "ostream": "c",
+        "cstdlib": "c",
+        "istream": "c"
+    }
+}
